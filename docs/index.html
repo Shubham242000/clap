@@ -11,12 +11,10 @@
 <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Space+Grotesk:wght@400;500;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
 <style>
   :root{
-    --cream:#fff2dd;
+    --bg:#ffffff;
     --ink:#161616;
-    --orange:#ff6a3d;
-    --red:#e8403d;
-    --yellow:#ffcf4a;
-    --mint:#8be3b9;
+    --yellow:#ffe156;
+    --mint:#6cf2c4;
     --sky:#8fc9ff;
     --pink:#ffb0d6;
     --border:4px;
@@ -24,7 +22,7 @@
   *{box-sizing:border-box; margin:0; padding:0;}
   html{scroll-behavior:smooth;}
   body{
-    background:var(--cream);
+    background:var(--bg);
     color:var(--ink);
     font-family:'Space Grotesk', sans-serif;
     background-image:radial-gradient(var(--ink) 1px, transparent 1px);
@@ -51,18 +49,19 @@
   }
   .btn:hover{transform:translate(-2px,-2px); box-shadow:8px 8px 0 var(--ink);}
   .btn:active{transform:translate(3px,3px); box-shadow:2px 2px 0 var(--ink);}
-  .btn-primary{background:var(--orange); color:var(--ink);}
+  .btn-primary{background:var(--yellow); color:var(--ink);}
   .btn-sm{padding:9px 16px; font-size:14px; box-shadow:4px 4px 0 var(--ink); border-radius:10px;}
   .btn-sm:hover{box-shadow:5px 5px 0 var(--ink);}
 
-  nav{
-    border-bottom:var(--border) solid var(--ink);
-    background:var(--cream);
-    position:sticky; top:0; z-index:20;
+  nav .inner{
+    max-width:1040px; margin:0 auto;
+    display:flex; align-items:center; justify-content:space-between;
+    height:84px; padding:0 24px;
   }
-  nav .wrap{display:flex; align-items:center; justify-content:space-between; height:74px;}
-  .brand{display:flex; align-items:center; gap:10px; font-size:22px; font-weight:700;}
-  .brand img{width:34px; height:34px; border-radius:9px; border:3px solid var(--ink);}
+  .brand{display:flex; align-items:center; gap:8px; font-family:'Fredoka', sans-serif; font-size:19px; font-weight:700;}
+  .brand .mark{font-size:20px;}
+  .nav-link{font-family:'Fredoka', sans-serif; font-weight:600; font-size:15px;}
+  .nav-link:hover{text-decoration:underline; text-underline-offset:4px;}
 
   main{position:relative; z-index:1;}
 
@@ -122,7 +121,7 @@
     display:flex; align-items:center; justify-content:space-between;
     padding:10px 18px; font-size:14.5px; font-weight:500;
   }
-  .mock-item.active{background:var(--orange); color:#fff; font-weight:700;}
+  .mock-item.active{background:var(--ink); color:#fff; font-weight:700;}
   .mock-sep{height:3px; background:repeating-linear-gradient(90deg,var(--ink) 0 6px,transparent 6px 12px); margin:4px 14px;}
   .mock-check{font-weight:700;}
 
@@ -162,6 +161,20 @@
     box-shadow:3px 3px 0 var(--ink);
   }
 
+  #how{padding:90px 0 100px;}
+  .how-grid{display:grid; grid-template-columns:repeat(3,1fr); gap:36px; margin-top:12px;}
+  .how-step{padding:10px 12px; text-align:center;}
+  .how-num{
+    width:56px; height:56px; border-radius:50%;
+    border:3px solid var(--ink); background:#fff;
+    display:flex; align-items:center; justify-content:center;
+    font-size:26px;
+    box-shadow:4px 4px 0 var(--ink);
+    margin:0 auto 18px;
+  }
+  .how-step h3{font-size:17px; margin-bottom:10px;}
+  .how-step p{font-size:14px; line-height:1.6; color:#4a443b; font-weight:500;}
+
   .install{
     border:var(--border) solid var(--ink);
     border-radius:20px;
@@ -182,11 +195,11 @@
   }
   .terminal .dots{display:flex; gap:6px; margin-bottom:16px;}
   .terminal .dots span{width:11px; height:11px; border-radius:50%;}
-  .terminal .dots span:nth-child(1){background:var(--red);}
+  .terminal .dots span:nth-child(1){background:var(--pink);}
   .terminal .dots span:nth-child(2){background:var(--yellow);}
   .terminal .dots span:nth-child(3){background:var(--mint);}
   .terminal .line{color:#f3efe6; margin-bottom:9px; white-space:pre;}
-  .terminal .line::before{content:"❯ "; color:var(--orange); font-weight:700;}
+  .terminal .line::before{content:"❯ "; color:var(--mint); font-weight:700;}
   .terminal .line.comment{color:#8a8378;}
   .terminal .line.comment::before{content:"";}
 
@@ -198,6 +211,7 @@
 
   @media (max-width:760px){
     .grid{grid-template-columns:1fr 1fr;}
+    .how-grid{grid-template-columns:1fr; gap:20px;}
     .install{grid-template-columns:1fr; padding:26px;}
     .sprinkle{display:none;}
     .terminal{font-size:12px; padding:16px;}
@@ -215,9 +229,9 @@
 <body>
 
 <nav>
-  <div class="wrap">
-    <div class="brand"><img src="assets/icon.png" alt="Clap icon"> Clap</div>
-    <a class="btn btn-sm" href="https://github.com/Shubham242000/clap" target="_blank" rel="noopener">⭐ GitHub</a>
+  <div class="inner">
+    <div class="brand"><span class="mark">👏</span> Clap</div>
+    <a class="nav-link" href="https://github.com/Shubham242000/clap" target="_blank" rel="noopener">GitHub</a>
   </div>
 </nav>
 
@@ -231,8 +245,8 @@
     <h1>Make your MacBook<br><span class="clap-emoji">👏</span> clap for you</h1>
     <p class="tagline">Clap is a tiny menu bar app that plays a sound when you open or close your laptop lid. It serves no real purpose. We built it anyway.</p>
     <div class="hero-ctas">
-      <a class="btn btn-primary" href="https://github.com/Shubham242000/clap" target="_blank" rel="noopener">Get The Claps →</a>
-      <a class="btn" href="#install">How to install</a>
+      <a class="btn btn-primary" href="https://github.com/Shubham242000/clap/releases/latest/download/Clap.app.zip">Download for macOS →</a>
+      <a class="btn" href="#how">How it works</a>
     </div>
     <div class="hero-meta">macOS · Pure Swift · 0 dependencies · &lt; 100KB</div>
   </section>
@@ -288,6 +302,30 @@
       <span class="pill">SWOOSH</span>
       <span class="pill">MARIMBA</span>
       <span class="pill">+ macOS classics</span>
+    </div>
+  </section>
+
+  <section class="wrap" id="how">
+    <div class="section-head">
+      <h2>How it works</h2>
+      <p>It's genuinely this simple.</p>
+    </div>
+    <div class="how-grid">
+      <div class="how-step">
+        <div class="how-num">😴</div>
+        <h3>Close your laptop</h3>
+        <p>You hear a sound.</p>
+      </div>
+      <div class="how-step">
+        <div class="how-num">👋</div>
+        <h3>Open it back up</h3>
+        <p>You hear another one.</p>
+      </div>
+      <div class="how-step">
+        <div class="how-num">🎛️</div>
+        <h3>Don't like them?</h3>
+        <p>Change them from the menu bar. That's the whole app.</p>
+      </div>
     </div>
   </section>
 

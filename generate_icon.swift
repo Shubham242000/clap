@@ -7,13 +7,10 @@ image.lockFocus()
 
 let rect = NSRect(x: 0, y: 0, width: size, height: size)
 let path = NSBezierPath(roundedRect: rect, xRadius: size * 0.22, yRadius: size * 0.22)
-let gradient = NSGradient(colors: [
-    NSColor(calibratedRed: 0.99, green: 0.62, blue: 0.13, alpha: 1.0),
-    NSColor(calibratedRed: 0.93, green: 0.27, blue: 0.22, alpha: 1.0),
-])
-gradient?.draw(in: path, angle: -90)
+NSColor(calibratedRed: 1.0, green: 0.882, blue: 0.337, alpha: 1.0).setFill() // matches landing page --yellow
+path.fill()
 
-let paletteConfig = NSImage.SymbolConfiguration(paletteColors: [.white])
+let paletteConfig = NSImage.SymbolConfiguration(paletteColors: [NSColor(calibratedWhite: 0.086, alpha: 1.0)]) // matches --ink
 let sizeConfig = NSImage.SymbolConfiguration(pointSize: size * 0.52, weight: .bold)
 let config = sizeConfig.applying(paletteConfig)
 
