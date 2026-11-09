@@ -49,15 +49,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     let statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
     var last = lidClosed() ?? false
     var timer: Timer?
+    // Held for the app's lifetime: a menu-bar app with no visible window gets
+    // throttled by App Nap, which would make the poll loop too slow to catch
+    // the lid-close event before the Mac fully sleeps.
+    var activity: NSObjectProtocol?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        activity = ProcessInfo.processInfo.beginActivity(
+            options: [.userInitiatedAllowingIdleSystemSleep],
+            reason: "Watching lid state to play open/close sounds"
+        )
         if defaults.object(forKey: kEnabled) == nil { defaults.set(true, forKey: kEnabled) }
         if defaults.string(forKey: kOpenSoundPath) == nil { defaults.set(systemSounds[0].path, forKey: kOpenSoundPath) }
         if defaults.string(forKey: kCloseSoundPath) == nil { defaults.set(systemSounds[4].path, forKey: kCloseSoundPath) }
 
-        if let button = statusItem.button {
-            button.image = NSImage(systemSymbolName: "laptopcomputer", accessibilityDescription: "Lid Sound")
-        }
+        updateIcon()
         statusItem.menu = buildMenu()
 
         timer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { [weak self] _ in
@@ -65,10 +71,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
+    // Icon reflects lid state: a laptop glyph when open, a sleeping moon when closed.
+    func updateIcon() {
+        let symbol = last ? "moon.zzz.fill" : "laptopcomputer"
+        if let button = statusItem.button {
+            button.image = NSImage(systemSymbolName: symbol, accessibilityDescription: "Lid Sound")
+        }
+    }
+
     func tick() {
-        guard defaults.bool(forKey: kEnabled) else { return }
         guard let now = lidClosed(), now != last else { return }
         last = now
+        updateIcon()
+        guard defaults.bool(forKey: kEnabled) else { return }
         let path = now ? defaults.string(forKey: kCloseSoundPath)! : defaults.string(forKey: kOpenSoundPath)!
         play(path)
     }

@@ -1,4 +1,5 @@
 lidsound
+LidSound.app
 .DS_Store
 *.swiftmodule
 .build/
