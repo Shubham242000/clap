@@ -6,14 +6,6 @@ A tiny macOS menu bar app that plays a sound when you open or close your laptop 
 
 ## Install
 
-### Option 1: Download (easiest)
-
-1. Download the latest `Clap.app.zip` from [Releases](https://github.com/Shubham242000/clap/releases/latest)
-2. Unzip it, then drag `Clap.app` into `/Applications`
-3. Open it. Since it's not notarized, macOS will warn it's from an unidentified developer — right-click the app and choose **Open** the first time (or go to **System Settings → Privacy & Security → Open Anyway**)
-
-### Option 2: Build from source
-
 ```bash
 git clone https://github.com/Shubham242000/clap.git
 cd clap
@@ -22,6 +14,8 @@ open Clap.app # launch it, or just double-click it in Finder
 ```
 
 Drag `Clap.app` into `/Applications` to keep it like any other app, and launch it from Spotlight or Launchpad.
+
+There's no prebuilt download — Clap isn't signed with a paid Apple Developer certificate, so a downloaded `.app` gets flagged by Gatekeeper as "damaged" and refuses to open. Building it locally takes 10 seconds and sidesteps that entirely, since locally-compiled apps aren't quarantined.
 
 ## Usage
 
