@@ -5,7 +5,22 @@ import Cocoa
 import IOKit
 import UniformTypeIdentifiers
 
-// Bundled macOS system sounds offered in the menu. Paths are to the stock .aiff files.
+func bundledSoundPath(_ filename: String) -> String {
+    let resourceDir = Bundle.main.resourcePath
+        ?? (URL(fileURLWithPath: CommandLine.arguments[0]).deletingLastPathComponent().path)
+    return resourceDir + "/Sounds/" + filename
+}
+
+// Original sounds shipped with the app.
+let bundledSounds: [(name: String, path: String)] = [
+    ("Chime", bundledSoundPath("chime.wav")),
+    ("Drop", bundledSoundPath("drop.wav")),
+    ("Pixel Blip", bundledSoundPath("blip.wav")),
+    ("Swoosh", bundledSoundPath("swoosh.wav")),
+    ("Marimba", bundledSoundPath("marimba.wav")),
+]
+
+// Stock macOS system sounds offered in the menu as well.
 let systemSounds: [(name: String, path: String)] = [
     ("Glass", "/System/Library/Sounds/Glass.aiff"),
     ("Pop", "/System/Library/Sounds/Pop.aiff"),
@@ -14,6 +29,8 @@ let systemSounds: [(name: String, path: String)] = [
     ("Bottle", "/System/Library/Sounds/Bottle.aiff"),
     ("Basso", "/System/Library/Sounds/Basso.aiff"),
 ]
+
+let allSounds = bundledSounds + systemSounds
 
 let defaults = UserDefaults.standard
 let kOpenSoundPath = "openSoundPath"
@@ -60,8 +77,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             reason: "Watching lid state to play open/close sounds"
         )
         if defaults.object(forKey: kEnabled) == nil { defaults.set(true, forKey: kEnabled) }
-        if defaults.string(forKey: kOpenSoundPath) == nil { defaults.set(systemSounds[0].path, forKey: kOpenSoundPath) }
-        if defaults.string(forKey: kCloseSoundPath) == nil { defaults.set(systemSounds[4].path, forKey: kCloseSoundPath) }
+        if defaults.string(forKey: kOpenSoundPath) == nil { defaults.set(bundledSounds[0].path, forKey: kOpenSoundPath) }
+        if defaults.string(forKey: kCloseSoundPath) == nil { defaults.set(bundledSounds[1].path, forKey: kCloseSoundPath) }
 
         if let button = statusItem.button {
             button.image = NSImage(systemSymbolName: "hands.clap.fill", accessibilityDescription: "Clap")
@@ -114,6 +131,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func soundSubmenu(selectedPath: String, key: String, action: Selector, customAction: Selector) -> NSMenu {
         let submenu = NSMenu()
+        for sound in bundledSounds {
+            let item = NSMenuItem(title: sound.name, action: action, keyEquivalent: "")
+            item.target = self
+            item.representedObject = sound.path
+            item.state = (sound.path == selectedPath) ? .on : .off
+            submenu.addItem(item)
+        }
+        submenu.addItem(.separator())
         for sound in systemSounds {
             let item = NSMenuItem(title: sound.name, action: action, keyEquivalent: "")
             item.target = self
@@ -122,7 +147,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             submenu.addItem(item)
         }
         submenu.addItem(.separator())
-        let isCustom = !systemSounds.contains { $0.path == selectedPath }
+        let isCustom = !allSounds.contains { $0.path == selectedPath }
         let customLabel = isCustom ? "Choose File... (\((selectedPath as NSString).lastPathComponent))" : "Choose File..."
         let customItem = NSMenuItem(title: customLabel, action: customAction, keyEquivalent: "")
         customItem.target = self
