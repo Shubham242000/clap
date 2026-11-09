@@ -1,0 +1,320 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Clap — your MacBook, applauding you</title>
+<meta name="description" content="Clap is a tiny, slightly unnecessary macOS menu bar app that plays a sound every time you open or close your laptop lid.">
+<link rel="icon" href="assets/icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Space+Grotesk:wght@400;500;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --cream:#fff2dd;
+    --ink:#161616;
+    --orange:#ff6a3d;
+    --red:#e8403d;
+    --yellow:#ffcf4a;
+    --mint:#8be3b9;
+    --sky:#8fc9ff;
+    --pink:#ffb0d6;
+    --border:4px;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  html{scroll-behavior:smooth;}
+  body{
+    background:var(--cream);
+    color:var(--ink);
+    font-family:'Space Grotesk', sans-serif;
+    background-image:radial-gradient(var(--ink) 1px, transparent 1px);
+    background-size:22px 22px;
+    background-position:-10px -10px;
+    overflow-x:hidden;
+  }
+  a{color:inherit;}
+  .wrap{max-width:1040px; margin:0 auto; padding:0 24px;}
+  h1,h2,h3,.fredoka{font-family:'Fredoka', sans-serif;}
+
+  /* sticker button */
+  .btn{
+    display:inline-flex; align-items:center; gap:8px;
+    font-family:'Fredoka', sans-serif;
+    font-weight:600; font-size:16px;
+    padding:14px 24px;
+    border:var(--border) solid var(--ink);
+    border-radius:14px;
+    background:#fff;
+    box-shadow:6px 6px 0 var(--ink);
+    transition:transform .12s ease, box-shadow .12s ease;
+    cursor:pointer;
+  }
+  .btn:hover{transform:translate(-2px,-2px); box-shadow:8px 8px 0 var(--ink);}
+  .btn:active{transform:translate(3px,3px); box-shadow:2px 2px 0 var(--ink);}
+  .btn-primary{background:var(--orange); color:var(--ink);}
+  .btn-sm{padding:9px 16px; font-size:14px; box-shadow:4px 4px 0 var(--ink); border-radius:10px;}
+  .btn-sm:hover{box-shadow:5px 5px 0 var(--ink);}
+
+  nav{
+    border-bottom:var(--border) solid var(--ink);
+    background:var(--cream);
+    position:sticky; top:0; z-index:20;
+  }
+  nav .wrap{display:flex; align-items:center; justify-content:space-between; height:74px;}
+  .brand{display:flex; align-items:center; gap:10px; font-size:22px; font-weight:700;}
+  .brand img{width:34px; height:34px; border-radius:9px; border:3px solid var(--ink);}
+
+  main{position:relative; z-index:1;}
+
+  /* floating sprinkles */
+  .sprinkle{position:absolute; font-size:30px; animation:bob 5s ease-in-out infinite; user-select:none; pointer-events:none;}
+  @keyframes bob{0%,100%{transform:translateY(0) rotate(var(--r,0deg));} 50%{transform:translateY(-14px) rotate(var(--r,0deg));}}
+
+  .hero{position:relative; padding:90px 0 50px; text-align:center; overflow:visible;}
+  .hero h1{
+    font-size:clamp(40px,8vw,74px);
+    line-height:1.02;
+    font-weight:700;
+    letter-spacing:-0.01em;
+  }
+  .hero h1 .clap-emoji{
+    display:inline-block;
+    animation:clapwiggle 1.1s ease-in-out infinite;
+  }
+  @keyframes clapwiggle{
+    0%,100%{transform:rotate(-8deg);}
+    50%{transform:rotate(14deg);}
+  }
+  .hero p.tagline{
+    max-width:560px; margin:24px auto 0;
+    font-size:19px; font-weight:500; color:#3c3630;
+    line-height:1.55;
+  }
+  .hero-ctas{display:flex; gap:16px; justify-content:center; margin-top:36px; flex-wrap:wrap;}
+  .hero-meta{
+    margin-top:22px; font-family:'JetBrains Mono', monospace; font-size:12.5px;
+    color:#6b6358; text-transform:uppercase; letter-spacing:0.08em;
+  }
+
+  /* mock menu screenshot */
+  .mock-wrap{display:flex; justify-content:center; padding:60px 0 10px;}
+  .mock{
+    width:300px; background:#fff;
+    border:var(--border) solid var(--ink);
+    border-radius:16px;
+    box-shadow:10px 10px 0 var(--ink);
+    transform:rotate(-2deg);
+    padding:14px 0;
+    position:relative;
+  }
+  .mock::before{
+    content:"MENU BAR PREVIEW";
+    position:absolute; top:-18px; left:24px;
+    background:var(--yellow);
+    border:3px solid var(--ink);
+    border-radius:6px;
+    padding:3px 10px;
+    font-family:'JetBrains Mono', monospace;
+    font-size:10px; font-weight:700;
+    transform:rotate(3deg);
+  }
+  .mock-item{
+    display:flex; align-items:center; justify-content:space-between;
+    padding:10px 18px; font-size:14.5px; font-weight:500;
+  }
+  .mock-item.active{background:var(--orange); color:#fff; font-weight:700;}
+  .mock-sep{height:3px; background:repeating-linear-gradient(90deg,var(--ink) 0 6px,transparent 6px 12px); margin:4px 14px;}
+  .mock-check{font-weight:700;}
+
+  section{padding:70px 0;}
+  .section-head{text-align:center; margin-bottom:44px;}
+  .section-head h2{font-size:clamp(30px,5vw,42px); font-weight:700;}
+  .section-head p{margin-top:10px; font-size:16px; color:#5a5349; font-weight:500;}
+
+  .grid{display:grid; grid-template-columns:repeat(4,1fr); gap:28px 22px; padding-top:10px;}
+  .card{
+    border:var(--border) solid var(--ink);
+    border-radius:16px;
+    padding:24px 20px;
+    position:relative;
+    box-shadow:7px 7px 0 var(--ink);
+    transition:transform .2s ease, box-shadow .2s ease;
+  }
+  .card:hover{transform:translate(-3px,-5px) rotate(0deg) !important; box-shadow:10px 11px 0 var(--ink);}
+  .card:nth-child(1){background:var(--yellow); transform:rotate(-2.5deg);}
+  .card:nth-child(2){background:var(--mint); transform:rotate(1.5deg);}
+  .card:nth-child(3){background:var(--sky); transform:rotate(-1deg);}
+  .card:nth-child(4){background:var(--pink); transform:rotate(2.5deg);}
+  .card .emoji{font-size:30px; display:block; margin-bottom:10px;}
+  .card h3{font-size:17px; margin-bottom:8px;}
+  .card p{font-size:13.5px; line-height:1.55; font-weight:500;}
+  .tape{
+    position:absolute; top:-14px; left:50%; transform:translateX(-50%) rotate(-4deg);
+    width:60px; height:22px; background:rgba(255,255,255,0.75);
+    border:2px solid rgba(22,22,22,0.4);
+  }
+
+  .sounds-row{display:flex; gap:10px; flex-wrap:wrap; justify-content:center; margin-top:34px;}
+  .pill{
+    font-family:'JetBrains Mono', monospace; font-weight:700; font-size:13px;
+    padding:8px 14px; border-radius:999px;
+    border:3px solid var(--ink); background:#fff;
+    box-shadow:3px 3px 0 var(--ink);
+  }
+
+  .install{
+    border:var(--border) solid var(--ink);
+    border-radius:20px;
+    background:#fff;
+    box-shadow:9px 9px 0 var(--ink);
+    padding:40px;
+    display:grid; grid-template-columns:1fr 1.1fr; gap:36px; align-items:center;
+  }
+  .install h2{font-size:28px; margin-bottom:12px;}
+  .install p{color:#4a443b; font-size:15px; line-height:1.6; font-weight:500;}
+  .install .joke{margin-top:14px; font-size:13px; color:#8c8376; font-style:italic;}
+  .terminal{
+    background:var(--ink); border-radius:14px; padding:22px;
+    font-family:'JetBrains Mono', monospace; font-size:13.5px;
+    border:3px solid var(--ink);
+    overflow-x:auto;
+    max-width:100%;
+  }
+  .terminal .dots{display:flex; gap:6px; margin-bottom:16px;}
+  .terminal .dots span{width:11px; height:11px; border-radius:50%;}
+  .terminal .dots span:nth-child(1){background:var(--red);}
+  .terminal .dots span:nth-child(2){background:var(--yellow);}
+  .terminal .dots span:nth-child(3){background:var(--mint);}
+  .terminal .line{color:#f3efe6; margin-bottom:9px; white-space:pre;}
+  .terminal .line::before{content:"❯ "; color:var(--orange); font-weight:700;}
+  .terminal .line.comment{color:#8a8378;}
+  .terminal .line.comment::before{content:"";}
+
+  footer{padding:60px 0 80px; text-align:center;}
+  footer .wrap{border-top:var(--border) solid var(--ink); padding-top:30px;}
+  footer p{font-weight:600; font-size:14.5px;}
+  footer .sub{margin-top:6px; font-weight:500; font-size:13px; color:#75695c;}
+  footer a{text-decoration:underline; text-underline-offset:3px;}
+
+  @media (max-width:760px){
+    .grid{grid-template-columns:1fr 1fr;}
+    .install{grid-template-columns:1fr; padding:26px;}
+    .sprinkle{display:none;}
+    .terminal{font-size:12px; padding:16px;}
+    .mock{width:92vw; max-width:300px;}
+  }
+  @media (max-width:520px){
+    .grid{grid-template-columns:1fr;}
+    .wrap{padding:0 18px;}
+    .install{padding:20px;}
+    .install h2{font-size:24px;}
+    .terminal{font-size:11px; padding:14px;}
+  }
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="wrap">
+    <div class="brand"><img src="assets/icon.png" alt="Clap icon"> Clap</div>
+    <a class="btn btn-sm" href="https://github.com/Shubham242000/clap" target="_blank" rel="noopener">⭐ GitHub</a>
+  </div>
+</nav>
+
+<main>
+  <section class="hero wrap">
+    <span class="sprinkle" style="top:40px; left:4%; --r:-12deg;">🎵</span>
+    <span class="sprinkle" style="top:120px; right:6%; --r:10deg; animation-delay:.6s;">✨</span>
+    <span class="sprinkle" style="top:10px; right:18%; --r:-6deg; animation-delay:1.1s;">💥</span>
+    <span class="sprinkle" style="bottom:0px; left:12%; --r:8deg; animation-delay:1.6s;">🔊</span>
+
+    <h1>Make your MacBook<br><span class="clap-emoji">👏</span> clap for you</h1>
+    <p class="tagline">Clap is a tiny menu bar app that plays a sound when you open or close your laptop lid. It serves no real purpose. We built it anyway.</p>
+    <div class="hero-ctas">
+      <a class="btn btn-primary" href="https://github.com/Shubham242000/clap" target="_blank" rel="noopener">Get The Claps →</a>
+      <a class="btn" href="#install">How to install</a>
+    </div>
+    <div class="hero-meta">macOS · Pure Swift · 0 dependencies · &lt; 100KB</div>
+  </section>
+
+  <div class="mock-wrap">
+    <div class="mock">
+      <div class="mock-item active">Enabled <span class="mock-check">✓</span></div>
+      <div class="mock-sep"></div>
+      <div class="mock-item">Open Sound <span>Chime ›</span></div>
+      <div class="mock-item">Close Sound <span>Drop ›</span></div>
+      <div class="mock-sep"></div>
+      <div class="mock-item">Launch at Login <span class="mock-check">✓</span></div>
+      <div class="mock-sep"></div>
+      <div class="mock-item">Quit</div>
+    </div>
+  </div>
+
+  <section class="wrap" id="features">
+    <div class="section-head">
+      <h2>Mildly useful features</h2>
+      <p>Lives quietly in your menu bar. No dock icon, no windows, no permission to judge your 47 open tabs.</p>
+    </div>
+    <div class="grid">
+      <div class="card">
+        <div class="tape"></div>
+        <span class="emoji">🎶</span>
+        <h3>5 homemade sounds</h3>
+        <p>Chime, Drop, Pixel Blip, Swoosh, Marimba — synthesized by math, not stolen from 2003 Windows.</p>
+      </div>
+      <div class="card">
+        <div class="tape"></div>
+        <span class="emoji">📂</span>
+        <h3>Bring your own chaos</h3>
+        <p>Airhorn on open? Scream on close? Your coworkers' problem now, not ours.</p>
+      </div>
+      <div class="card">
+        <div class="tape"></div>
+        <span class="emoji">⚡️</span>
+        <h3>Launch at login</h3>
+        <p>One click and it's clapping for you before you've even had coffee.</p>
+      </div>
+      <div class="card">
+        <div class="tape"></div>
+        <span class="emoji">🪶</span>
+        <h3>Basically weightless</h3>
+        <p>Under 100KB. Smaller than the screenshot you just took of this page.</p>
+      </div>
+    </div>
+    <div class="sounds-row">
+      <span class="pill">CHIME</span>
+      <span class="pill">DROP</span>
+      <span class="pill">PIXEL BLIP</span>
+      <span class="pill">SWOOSH</span>
+      <span class="pill">MARIMBA</span>
+      <span class="pill">+ macOS classics</span>
+    </div>
+  </section>
+
+  <section class="wrap" id="install">
+    <div class="install">
+      <div>
+        <h2>Three commands.<br>Zero regrets.*</h2>
+        <p>Clone it, build it, drag it into Applications. No App Store review, no $99/year, no asking Apple's permission to make your laptop clap.</p>
+        <p class="joke">*Regrets not included or guaranteed excluded.</p>
+      </div>
+      <div class="terminal">
+        <div class="dots"><span></span><span></span><span></span></div>
+        <div class="line">git clone https://github.com/Shubham242000/clap.git</div>
+        <div class="line">cd clap &amp;&amp; ./build.sh</div>
+        <div class="line">open Clap.app</div>
+        <div class="line comment"># then drag Clap.app into /Applications</div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <p>Built by <a href="https://github.com/Shubham242000" target="_blank" rel="noopener">Shubham Shrivastava</a>.</p>
+    <p class="sub"><a href="https://github.com/Shubham242000/clap" target="_blank" rel="noopener">View source</a> · give it a ⭐ if your laptop deserves applause too</p>
+  </div>
+</footer>
+
+</body>
+</html>
