@@ -1,13 +1,14 @@
 #!/bin/bash
-# Builds LidSound.app — a double-clickable macOS app bundle.
+# Builds Clap.app — a double-clickable macOS app bundle.
 set -euo pipefail
 cd "$(dirname "$0")"
 
-APP="LidSound.app"
+APP="Clap.app"
 rm -rf "$APP"
-mkdir -p "$APP/Contents/MacOS"
+mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 
-swiftc -O lidsound.swift -o "$APP/Contents/MacOS/LidSound"
+swiftc -O clap.swift -o "$APP/Contents/MacOS/Clap"
 cp Info.plist "$APP/Contents/Info.plist"
+cp AppIcon.icns "$APP/Contents/Resources/AppIcon.icns"
 
 echo "Built $APP"

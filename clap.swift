@@ -1,6 +1,6 @@
-// lidsound.swift — menu bar app that plays a sound when the MacBook lid closes or opens.
-// Build:  swiftc -O lidsound.swift -o lidsound
-// Run:    ./lidsound
+// clap.swift — menu bar app that plays a sound when the MacBook lid closes or opens.
+// Build:  ./build.sh
+// Run:    open Clap.app
 import Cocoa
 import IOKit
 import UniformTypeIdentifiers
@@ -20,7 +20,7 @@ let kOpenSoundPath = "openSoundPath"
 let kCloseSoundPath = "closeSoundPath"
 let kEnabled = "enabled"
 
-let loginAgentLabel = "com.shubhamshrivastava.lidsound"
+let loginAgentLabel = "com.shubhamshrivastava.clap"
 let loginAgentPlist = ("\(NSHomeDirectory())/Library/LaunchAgents/\(loginAgentLabel).plist")
 
 func play(_ path: String) {
@@ -63,7 +63,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if defaults.string(forKey: kOpenSoundPath) == nil { defaults.set(systemSounds[0].path, forKey: kOpenSoundPath) }
         if defaults.string(forKey: kCloseSoundPath) == nil { defaults.set(systemSounds[4].path, forKey: kCloseSoundPath) }
 
-        updateIcon()
+        if let button = statusItem.button {
+            button.image = NSImage(systemSymbolName: "hands.clap.fill", accessibilityDescription: "Clap")
+        }
         statusItem.menu = buildMenu()
 
         timer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { [weak self] _ in
@@ -71,19 +73,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
-    // Icon reflects lid state: a laptop glyph when open, a sleeping moon when closed.
-    func updateIcon() {
-        let symbol = last ? "moon.zzz.fill" : "laptopcomputer"
-        if let button = statusItem.button {
-            button.image = NSImage(systemSymbolName: symbol, accessibilityDescription: "Lid Sound")
-        }
-    }
-
     func tick() {
+        guard defaults.bool(forKey: kEnabled) else { return }
         guard let now = lidClosed(), now != last else { return }
         last = now
-        updateIcon()
-        guard defaults.bool(forKey: kEnabled) else { return }
         let path = now ? defaults.string(forKey: kCloseSoundPath)! : defaults.string(forKey: kOpenSoundPath)!
         play(path)
     }
@@ -202,8 +195,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 <array><string>\(currentExecutablePath())</string></array>
                 <key>RunAtLoad</key><true/>
                 <key>KeepAlive</key><false/>
-                <key>StandardOutPath</key><string>/tmp/lidsound.log</string>
-                <key>StandardErrorPath</key><string>/tmp/lidsound.err</string>
+                <key>StandardOutPath</key><string>/tmp/clap.log</string>
+                <key>StandardErrorPath</key><string>/tmp/clap.err</string>
             </dict>
             </plist>
             """
