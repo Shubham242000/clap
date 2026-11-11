@@ -3,6 +3,7 @@
 // Run:    open Clap.app
 import Cocoa
 import IOKit
+import IOKit.pwr_mgt
 import UniformTypeIdentifiers
 
 func bundledSoundPath(_ filename: String) -> String {
@@ -40,12 +41,32 @@ let kEnabled = "enabled"
 let loginAgentLabel = "com.shubhamshrivastava.clap"
 let loginAgentPlist = ("\(NSHomeDirectory())/Library/LaunchAgents/\(loginAgentLabel).plist")
 
-func play(_ path: String) {
-    let p = Process()
-    p.executableURL = URL(fileURLWithPath: "/usr/bin/afplay")
-    p.arguments = [path]
-    try? p.run()
+// Empty path means "None" — no sound for that event.
+let noSoundPath = ""
+
+// Plays in-process (not via afplay) so playback starts instantly and can be
+// stopped — a stray sound frozen by sleep must not resume on wake.
+var currentSound: NSSound?
+
+@discardableResult
+func play(_ path: String) -> TimeInterval {
+    currentSound?.stop()
+    currentSound = nil
+    guard !path.isEmpty, let sound = NSSound(contentsOfFile: path, byReference: true) else { return 0 }
+    currentSound = sound
+    sound.play()
+    return sound.duration
 }
+
+func stopSound() {
+    currentSound?.stop()
+    currentSound = nil
+}
+
+// IOKit power message codes (the C macros aren't imported into Swift).
+let kMsgCanSystemSleep: UInt32 = 0xE000_0270
+let kMsgSystemWillSleep: UInt32 = 0xE000_0280
+let kMsgSystemHasPoweredOn: UInt32 = 0xE000_0300
 
 // Reads the lid state straight from the hardware (IOPMrootDomain).
 func lidClosed() -> Bool? {
@@ -70,6 +91,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     // throttled by App Nap, which would make the poll loop too slow to catch
     // the lid-close event before the Mac fully sleeps.
     var activity: NSObjectProtocol?
+    // System power notifications: lets us delay sleep until the close sound finishes.
+    var rootPort: io_connect_t = 0
+    var notifyPort: IONotificationPortRef?
+    var notifier: io_object_t = 0
+    // When the in-flight close sound will finish (so sleep can wait for it).
+    var closeSoundEndsAt: Date?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         activity = ProcessInfo.processInfo.beginActivity(
@@ -88,14 +115,63 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         timer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { [weak self] _ in
             self?.tick()
         }
+        registerForSleepNotifications()
     }
 
     func tick() {
-        guard defaults.bool(forKey: kEnabled) else { return }
         guard let now = lidClosed(), now != last else { return }
         last = now
-        let path = now ? defaults.string(forKey: kCloseSoundPath)! : defaults.string(forKey: kOpenSoundPath)!
-        play(path)
+        guard defaults.bool(forKey: kEnabled) else { return }
+        if now {
+            playCloseSound()
+        } else {
+            closeSoundEndsAt = nil
+            play(defaults.string(forKey: kOpenSoundPath)!)
+        }
+    }
+
+    func playCloseSound() {
+        let duration = play(defaults.string(forKey: kCloseSoundPath)!)
+        closeSoundEndsAt = duration > 0 ? Date().addingTimeInterval(duration) : nil
+    }
+
+    func registerForSleepNotifications() {
+        let refcon = Unmanaged.passUnretained(self).toOpaque()
+        rootPort = IORegisterForSystemPower(refcon, &notifyPort, { refcon, _, messageType, messageArgument in
+            guard let refcon = refcon else { return }
+            let me = Unmanaged<AppDelegate>.fromOpaque(refcon).takeUnretainedValue()
+            me.handlePower(messageType, Int(bitPattern: messageArgument))
+        }, &notifier)
+        if rootPort != 0, let port = notifyPort {
+            CFRunLoopAddSource(CFRunLoopGetMain(),
+                               IONotificationPortGetRunLoopSource(port).takeUnretainedValue(),
+                               .commonModes)
+        }
+    }
+
+    func handlePower(_ message: UInt32, _ token: Int) {
+        switch message {
+        case kMsgCanSystemSleep:
+            IOAllowPowerChange(rootPort, token)
+        case kMsgSystemWillSleep:
+            // Lid-close sleep usually beats the poll loop. Play the close sound
+            // now (if the poll hasn't already) and hold off sleep until it ends.
+            if defaults.bool(forKey: kEnabled), lidClosed() == true, !last {
+                last = true
+                playCloseSound()
+            }
+            let remaining = min(max(closeSoundEndsAt?.timeIntervalSinceNow ?? 0, 0), 5)
+            DispatchQueue.main.asyncAfter(deadline: .now() + remaining + 0.05) { [self] in
+                closeSoundEndsAt = nil
+                IOAllowPowerChange(rootPort, token)
+            }
+        case kMsgSystemHasPoweredOn:
+            // Never let a leftover close sound bleed into the open sound.
+            stopSound()
+            closeSoundEndsAt = nil
+        default:
+            break
+        }
     }
 
     func buildMenu() -> NSMenu {
@@ -131,6 +207,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func soundSubmenu(selectedPath: String, key: String, action: Selector, customAction: Selector) -> NSMenu {
         let submenu = NSMenu()
+        let noneItem = NSMenuItem(title: "None", action: action, keyEquivalent: "")
+        noneItem.target = self
+        noneItem.representedObject = noSoundPath
+        noneItem.state = selectedPath == noSoundPath ? .on : .off
+        submenu.addItem(noneItem)
+        submenu.addItem(.separator())
         for sound in bundledSounds {
             let item = NSMenuItem(title: sound.name, action: action, keyEquivalent: "")
             item.target = self
@@ -147,7 +229,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             submenu.addItem(item)
         }
         submenu.addItem(.separator())
-        let isCustom = !allSounds.contains { $0.path == selectedPath }
+        let isCustom = selectedPath != noSoundPath && !allSounds.contains { $0.path == selectedPath }
         let customLabel = isCustom ? "Choose File... (\((selectedPath as NSString).lastPathComponent))" : "Choose File..."
         let customItem = NSMenuItem(title: customLabel, action: customAction, keyEquivalent: "")
         customItem.target = self
