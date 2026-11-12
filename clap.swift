@@ -1,9 +1,8 @@
-// clap.swift — menu bar app that plays a sound when the MacBook lid closes or opens.
+// clap.swift — menu bar app that plays a sound when you open the MacBook lid.
 // Build:  ./build.sh
 // Run:    open Clap.app
 import Cocoa
 import IOKit
-import IOKit.pwr_mgt
 import UniformTypeIdentifiers
 
 func bundledSoundPath(_ filename: String) -> String {
@@ -35,38 +34,21 @@ let allSounds = bundledSounds + systemSounds
 
 let defaults = UserDefaults.standard
 let kOpenSoundPath = "openSoundPath"
-let kCloseSoundPath = "closeSoundPath"
 let kEnabled = "enabled"
 
 let loginAgentLabel = "com.shubhamshrivastava.clap"
 let loginAgentPlist = ("\(NSHomeDirectory())/Library/LaunchAgents/\(loginAgentLabel).plist")
 
-// Empty path means "None" — no sound for that event.
+// Empty path means "None".
 let noSoundPath = ""
 
-// Plays in-process (not via afplay) so playback starts instantly and can be
-// stopped — a stray sound frozen by sleep must not resume on wake.
-var currentSound: NSSound?
-
-@discardableResult
-func play(_ path: String) -> TimeInterval {
-    currentSound?.stop()
-    currentSound = nil
-    guard !path.isEmpty, let sound = NSSound(contentsOfFile: path, byReference: true) else { return 0 }
-    currentSound = sound
-    sound.play()
-    return sound.duration
+func play(_ path: String) {
+    guard !path.isEmpty else { return }
+    let p = Process()
+    p.executableURL = URL(fileURLWithPath: "/usr/bin/afplay")
+    p.arguments = [path]
+    try? p.run()
 }
-
-func stopSound() {
-    currentSound?.stop()
-    currentSound = nil
-}
-
-// IOKit power message codes (the C macros aren't imported into Swift).
-let kMsgCanSystemSleep: UInt32 = 0xE000_0270
-let kMsgSystemWillSleep: UInt32 = 0xE000_0280
-let kMsgSystemHasPoweredOn: UInt32 = 0xE000_0300
 
 // Reads the lid state straight from the hardware (IOPMrootDomain).
 func lidClosed() -> Bool? {
@@ -88,24 +70,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     var last = lidClosed() ?? false
     var timer: Timer?
     // Held for the app's lifetime: a menu-bar app with no visible window gets
-    // throttled by App Nap, which would make the poll loop too slow to catch
-    // the lid-close event before the Mac fully sleeps.
+    // throttled by App Nap, which would make the poll loop slow to notice
+    // the lid opening.
     var activity: NSObjectProtocol?
-    // System power notifications: lets us delay sleep until the close sound finishes.
-    var rootPort: io_connect_t = 0
-    var notifyPort: IONotificationPortRef?
-    var notifier: io_object_t = 0
-    // When the in-flight close sound will finish (so sleep can wait for it).
-    var closeSoundEndsAt: Date?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         activity = ProcessInfo.processInfo.beginActivity(
             options: [.userInitiatedAllowingIdleSystemSleep],
-            reason: "Watching lid state to play open/close sounds"
+            reason: "Watching lid state to play the open sound"
         )
         if defaults.object(forKey: kEnabled) == nil { defaults.set(true, forKey: kEnabled) }
         if defaults.string(forKey: kOpenSoundPath) == nil { defaults.set(bundledSounds[0].path, forKey: kOpenSoundPath) }
-        if defaults.string(forKey: kCloseSoundPath) == nil { defaults.set(bundledSounds[1].path, forKey: kCloseSoundPath) }
 
         if let button = statusItem.button {
             button.image = NSImage(systemSymbolName: "hands.clap.fill", accessibilityDescription: "Clap")
@@ -115,63 +90,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         timer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { [weak self] _ in
             self?.tick()
         }
-        registerForSleepNotifications()
     }
 
     func tick() {
+        guard defaults.bool(forKey: kEnabled) else { return }
         guard let now = lidClosed(), now != last else { return }
         last = now
-        guard defaults.bool(forKey: kEnabled) else { return }
-        if now {
-            playCloseSound()
-        } else {
-            closeSoundEndsAt = nil
-            play(defaults.string(forKey: kOpenSoundPath)!)
-        }
-    }
-
-    func playCloseSound() {
-        let duration = play(defaults.string(forKey: kCloseSoundPath)!)
-        closeSoundEndsAt = duration > 0 ? Date().addingTimeInterval(duration) : nil
-    }
-
-    func registerForSleepNotifications() {
-        let refcon = Unmanaged.passUnretained(self).toOpaque()
-        rootPort = IORegisterForSystemPower(refcon, &notifyPort, { refcon, _, messageType, messageArgument in
-            guard let refcon = refcon else { return }
-            let me = Unmanaged<AppDelegate>.fromOpaque(refcon).takeUnretainedValue()
-            me.handlePower(messageType, Int(bitPattern: messageArgument))
-        }, &notifier)
-        if rootPort != 0, let port = notifyPort {
-            CFRunLoopAddSource(CFRunLoopGetMain(),
-                               IONotificationPortGetRunLoopSource(port).takeUnretainedValue(),
-                               .commonModes)
-        }
-    }
-
-    func handlePower(_ message: UInt32, _ token: Int) {
-        switch message {
-        case kMsgCanSystemSleep:
-            IOAllowPowerChange(rootPort, token)
-        case kMsgSystemWillSleep:
-            // Lid-close sleep usually beats the poll loop. Play the close sound
-            // now (if the poll hasn't already) and hold off sleep until it ends.
-            if defaults.bool(forKey: kEnabled), lidClosed() == true, !last {
-                last = true
-                playCloseSound()
-            }
-            let remaining = min(max(closeSoundEndsAt?.timeIntervalSinceNow ?? 0, 0), 5)
-            DispatchQueue.main.asyncAfter(deadline: .now() + remaining + 0.05) { [self] in
-                closeSoundEndsAt = nil
-                IOAllowPowerChange(rootPort, token)
-            }
-        case kMsgSystemHasPoweredOn:
-            // Never let a leftover close sound bleed into the open sound.
-            stopSound()
-            closeSoundEndsAt = nil
-        default:
-            break
-        }
+        // Only on open: closing the lid usually sleeps the Mac within
+        // milliseconds, before any sound can get out of the speakers.
+        if !now { play(defaults.string(forKey: kOpenSoundPath)!) }
     }
 
     func buildMenu() -> NSMenu {
@@ -188,9 +115,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         openItem.submenu = soundSubmenu(selectedPath: defaults.string(forKey: kOpenSoundPath)!, key: kOpenSoundPath, action: #selector(selectOpenSound(_:)), customAction: #selector(chooseCustomOpenSound))
         menu.addItem(openItem)
 
-        let closeItem = NSMenuItem(title: "Close Sound", action: nil, keyEquivalent: "")
-        closeItem.submenu = soundSubmenu(selectedPath: defaults.string(forKey: kCloseSoundPath)!, key: kCloseSoundPath, action: #selector(selectCloseSound(_:)), customAction: #selector(chooseCustomCloseSound))
-        menu.addItem(closeItem)
 
         menu.addItem(.separator())
 
@@ -250,13 +174,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         play(path)
     }
 
-    @objc func selectCloseSound(_ sender: NSMenuItem) {
-        let path = sender.representedObject as! String
-        defaults.set(path, forKey: kCloseSoundPath)
-        statusItem.menu = buildMenu()
-        play(path)
-    }
-
     func pickCustomSound(completion: (String) -> Void) {
         let panel = NSOpenPanel()
         panel.allowedContentTypes = [.audio]
@@ -270,14 +187,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     @objc func chooseCustomOpenSound() {
         pickCustomSound { path in
             defaults.set(path, forKey: kOpenSoundPath)
-            statusItem.menu = buildMenu()
-            play(path)
-        }
-    }
-
-    @objc func chooseCustomCloseSound() {
-        pickCustomSound { path in
-            defaults.set(path, forKey: kCloseSoundPath)
             statusItem.menu = buildMenu()
             play(path)
         }
